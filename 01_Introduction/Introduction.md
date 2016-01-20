@@ -30,15 +30,69 @@ Flux、CQRS、イベントソーシングという段階を経て、Reduxは更�
 
 ## Three Principles
 
+Reduxは3つの基礎的な原則によって表現できる。
+
 ### Single source of truth
 
 単一のstoreのオブジェクトツリーにアプリケーションのすべての状態を保存する。
 
+これによりサーバーからの状態はそのためのコードを必要とせずクライアントにシリアライズされ、
+伝達されるのであらゆるアプリケーションを作るのを簡単にする。
+一つの状態のツリーはアプリケーションの分析とデバッグを容易にする。
+さらにはアプリケーションの素早い開発サイクルを保つことも可能にする。
+状態が一つのツリーに保存されていれば、伝統的に難しいとされてきた幾つかの機能、例えばUndo/Redoは
+簡単に実装することができる。
+
+
+```javascript
+console.log(store.getState())
+
+/* Prints
+{
+  visibilityFilter: 'SHOW_ALL',
+  todos: [
+    {
+      text: 'Consider using Redux',
+      completed: true,
+    }, 
+    {
+      text: 'Keep all state in a single tree',
+      completed: false
+    }
+  ]
+}
+*/
+```
+
 ### State is read-only
 
-状態を変える唯一の方法はactionを発行することで、これは何が起こったかを記述しているオブジェクト。
+状態を変える唯一の方法はactionを発行することで、これは何が起こったかを記述しているオブジェクトである。
+
+これはビューやネットワークのコールバックのどちらも状態を直接書き換えないことを保証する。
+かわりに、状態変化の意図(intent)を述べるようになる。
+全ての状態変化が集中管理され、厳格な順序でひとつずつ起こるため、繊細なレースコンディションを気にかける必要がない。
+actionはただのプレーンなオブジェクトなので、ログ、シリアライズ、保存、リプレイをデバッグやテストなどで行える。
+
+```javascript
+store.dispatch({
+  type: 'COMPLETE_TODO',
+  index: 1
+})
+
+store.dispatch({
+  type: 'SET_VISIBILITY_FILTER',
+  filter: 'SHOW_COMPLETED'
+})
+```
 
 ### Changes are made with pure functions
+
+アクションによってどのように胴体のツリーが変化するかを指定するには、純粋な関数であるreducerを使う。
+
+reducerはひとつ前の状態とアクションを引数に取り、次の状態を返す単なる純粋関数である。
+前の状態を変更するのではなく新しい状態オブジェクトを返すことに注意する。
+はじめは一つのreducerでよいが、アプリケーションが大きくなるにつれ状態ツリーの部分に応じて小さなreducerに分割していく。
+reducerはただの関数なので、呼ばれる順番の変更や引数の追加、ページネーションといった共有のタスクではreducerを再利用することができる。
 
 ```javascript
 function visibilityFilter(state = 'SHOW_ALL', action) {
@@ -77,5 +131,7 @@ import { combineReducers, createStore } from 'redux'
 let reducer = combineReducers({ visibilityFilter, todos })
 let store = createStore(reducer)
 ```
+
+以上でReduxの全てがわかったはずだ。
 
 ## Prior Art
