@@ -2,12 +2,83 @@
 
 ## Actions
 
-actionはJavascriptオブジェクトで、typeプロパティを持つ。
-typeは直接文字列でもよいが、const変数のほうが便利になる。
+actionはアプリケーションからstoreに送信する情報のペイロードである。
+storeへ送る唯一の情報源である。
+`store.dispatch()`を使ってstoreにデータを送る。
+
+```javascript
+const ADD_TODO = 'ADD_TODO'
+```
+
+```javascript
+{
+  type: ADD_TODO,
+  text: 'Build my first Redux app'
+}
+```
+
+actionはただのJavascriptオブジェクトである。actionは`type`プロパティを持たなければならず、
+これは実行されたactionのタイプを示している。
+タイプは一般的に文字列定数で定義される。
+アプリケーションが大きくなると、こういった定数を別のモジュールに分離したくなるだろう。
+
+```javascript
+import { ADD_TODO, REMOVE_TODO } from '../actionTypes'
+```
+
+> ボイラープレートについて
+> ファイルを分けてactionタイプの定数を定義する必要はなく、もしくは定義しなければならないわけでもない。
+> 小さなプロジェクトにおいてはactionタイプにただの文字列リテラルを使うほうがわかりやすいだろう。
+> しかし、大きなコードベースでは明示的に定数を宣言するメリットが有る。
+> (Reducing Boilerplate)[http://rackt.org/redux/docs/recipes/ReducingBoilerplate.html]に
+> コードベースを綺麗に保つ実用的なTIPSがある。
+
+`type`の他には、actionオブジェクトの構造をどうするかは自由だ。
+関心があるなら(Flux Standard Action)[https://github.com/acdlite/flux-standard-action]で
+actionをどのように構築するか推奨されているかを見るといい。
+
+actionタイプにユーザーがTODOを一つ完了したことを示すものを追加する。
+TODOを配列で保存しているので、完了したTODOを指定するのに`index`プロパティを指定する。
+実際のアプリケーションでは、何かを生成するたびにユニークなIDを発行するのが賢い。
+ーションが大きくなると、こういった定数を別のモジュールに分離したくなるだろう。
+
+```javascript
+{
+  type: COMPLETE_TODO,
+  index: 5
+}
+```
+
+可能な限り小さなデータを渡す方が良い。例えば、TODOアイテム全体を渡すよりも`index`だけを渡す方が良い。
+
+最後に、TODOの表示を切り替えるactionタイプを追加する。
+
+```javascript
+{
+  type: SET_VISIBILITY_FILTER,
+  filter: SHOW_COMPLETED
+}
+```
 
 ### Action Creators
 
-actionを作る関数
+action creatorはそのままactionを作る関数だ。
+actionとaction creatorを一緒にするのは簡単なので、チームにあった方を選ぼう。
+
+(Flux)[http://facebook.github.io/flux/]の伝統的な方法では、
+action creatorは実行された時dispatchを実行する。
+
+```javascript
+function addTodoWithDispatch(text) {
+  const action = {
+    type: ADD_TODO,
+    text
+  }
+  dispatch(action)
+}
+```
+
+それとは対照に、Reduxのaction creatorは単純にactionを返すだけだ。
 
 ```javascript
 function addTodo(text) {
@@ -16,23 +87,75 @@ function addTodo(text) {
     text
   }
 }
+```
 
+このため再利用とテストが容易になる。実際にはdispatchを実行するため、戻り値をdispatchに渡す。
+
+```javascript
 dispatch(addTodo(text))
 dispatch(completeTodo(index))
 ```
 
-bound action creatorは自動で発行する
+あるいは、自動でdispatchを実行するbound action creatorを作ることもできる。
 
 ```javascript
 const boundAddTodo = (text) => dispatch(addTodo(text))
 const boundCompleteTodo = (index) => dispatch(completeTodo(index))
+```
 
+これで直接呼ぶだけでdispatchが実行される。
+
+```javascript
 boundAddTodo(text)
 boundCompleteTodo(index)
 ```
 
-`store.dispatch()`に直接アクセスるよりも、react-reduxの`connect()`ヘルパーのようなものを使うだろう。
+`store.dispatch()`に直接アクセスするよりも、react-reduxの`connect()`ヘルパーのようなものを使うだろう。
 `bindActionCreators()`もaction creatorを`dispath()`関数にバインドするのに使える。
+
+### Source code
+
+#### `action.js`
+
+```javascript
+/*
+ * action types
+ */
+
+export const ADD_TODO = 'ADD_TODO'
+export const COMPLETE_TODO = 'COMPLETE_TODO'
+export const SET_VISIBILITY_FILTER = 'SET_VISIBILITY_FILTER'
+
+/*
+ * other constants
+ */
+
+export const VisibilityFilters = {
+  SHOW_ALL: 'SHOW_ALL',
+  SHOW_COMPLETED: 'SHOW_COMPLETED',
+  SHOW_ACTIVE: 'SHOW_ACTIVE'
+}
+
+/*
+ * action creators
+ */
+
+export function addTodo(text) {
+  return { type: ADD_TODO, text }
+}
+
+export function completeTodo(index) {
+  return { type: COMPLETE_TODO, index }
+}
+
+export function setVisibilityFilter(filter) {
+  return { type: SET_VISIBILITY_FILTER, filter }
+}
+```
+
+### Next Steps
+
+次はactionが実行された時にどのように状態が更新されるかを記述するreducerを定義する。
 
 ## Reducers
 
@@ -370,339 +493,3 @@ function todos(state = [], action) {
 ### 4. `store`はルート`reducer`が返した状態のツリー全体を保存する
 
 `store.subscribe(listener)`で登録された全てのリスナーが呼び出される。リスナーは`store.getState()`を実行し現在の状態を得る。
-
-## Usage with React
-
-ReduxはReactにかぎらずAngular, Ember, jQueryなどでも使えるが、ReactやDekuといった状態からUIを返す関数をもつフレームワークとは特によく動く。
-
-### Installing React Redux
-
-`react-redux`はReactバインディングを提供する。
-
-### Container and Presentational Components
-
-ReduxのReactバインディングは、コンテナとプレゼンテーショナルコンポーネントの分離のアイディアを含む。
-アプリケーションのトップレベルのコンポーネント（ルートハンドラーなど）だけがReduxに関連するほうがよく、
-その下のコンポーネントは全てのデータをプロパティで受け取る。
-
-|                 コンテナコンポーネント        | プレゼンテーショナルコンポーネント
--------------- | -------------------------- | --------------------------------
-場所  　　　　　　| トップレベル、ルートハンドラー  | 中間や末端のコンポーネント
-Reduxを使う 　　 | Yes                        | No
-データを読み取る  | Reduxのstateをsubscribeする | プロパティからデータを読み取る
-データを変更する  | Reduxのactionをdispatchする | プロパティからコールバックを実行する
-
-このtodoアプリの例では一つのコンテナコンポーネントがビュー階層のトップにあるだけになる。
-より複雑なアプリケーションでは、複数の階層とコンポーネントを持つことになる。
-コンポーネントをネストする場合は、可能な限りプロパティを渡していくことを推奨する。
-
-### Designing Component Hierarchy
-
-状態を表すオブジェクトツリーをUI階層に合わせて設計する。[Thinking in React](https://facebook.github.io/react/docs/thinking-in-react.html)はこのプロセスを説明するとても良いチュートリアルだ。
-
-TODOを新たにテキストで追加し、完了・未完了をマークでき、ページ下部に表示するTODOを全て・完了のみ・未完了のみにフィルタできるTODOアプリケーションを考える。
-
-この概要から以下のコンポーネントとプロパティが思い浮かぶ：
-- `AddTodo`はボタンのある`input`フィールド
-  - `onAddClick(text: string)`はボタンが押された時のコールバック
-- `TodoList`は表示されているTODOのリスト
-  - `todos: Array`はTODOアイテムの配列で、`{ text, completed }`からなる
-  - `onTodoClick(index: number)`はTODOがクリックされた時のコールバック
-- `Todo`は一つのTODOアイテム
-  - `text: string` is the text to show.
-  - `completed: boolean` is whether todo should appear crossed out.
-  - `onClick()` is a callback to invoke when a todo is clicked.
-- `Footer` is a component where we let user change visible todo filter.
-  - `filter: string` is the current filter: 'SHOW_ALL', 'SHOW_COMPLETED' or 'SHOW_ACTIVE'.
-  - `onFilterChange(nextFilter: string)`: Callback to invoke when user chooses a different filter.
-
-これらはすべてプレゼンテーショナルコンポーネントである。データがどこから来るかや変更されるかは関知しない。
-与えられたデータを描画するのみである。
-
-他の何かへReduxから移行する場合、これらのコンポーネントをそのまま使うことができる。これらはReduxに一切依存しない。
-
-これらを書いてみる。Reduxへのバインディングはまだ考える必要はない。実際に描画するまではフェイクのデータを渡せば良い。
-
-### Presentational Components
-
-これらはただのReactコンポーネントなので、詳細は省く：
-
-```javascript
-// components/AddTodo.js
-import React, { Component, PropTypes } from 'react'
-
-export default class AddTodo extends Component {
-  render() {
-    return (
-      <div>
-        <input type='text' ref='input' />
-        <button onClick={e => this.handleClick(e)}>
-          Add
-        </button>
-      </div>
-    )
-  }
-
-  handleClick(e) {
-    const node = this.refs.input
-    const text = node.value.trim()
-    this.props.onAddClick(text)
-    node.value = ''
-  }
-}
-
-AddTodo.propTypes = {
-  onAddClick: PropTypes.func.isRequired
-}
-```
-
-```javascript
-// components/Todo.js
-import React, { Component, PropTypes } from 'react'
-
-export default class Todo extends Component {
-  render() {
-    return (
-      <li
-        onClick={this.props.onClick}
-        style={{
-          textDecoration: this.props.completed ? 'line-through' : 'none',
-          cursor: this.props.completed ? 'default' : 'pointer'
-        }}>
-        {this.props.text}
-      </li>
-    )
-  }
-}
-
-Todo.propTypes = {
-  onClick: PropTypes.func.isRequired,
-  text: PropTypes.string.isRequired,
-  completed: PropTypes.bool.isRequired
-}
-```
-
-```javascript
-// components/TodoList.js
-import React, { Component, PropTypes } from 'react'
-import Todo from './Todo'
-
-export default class TodoList extends Component {
-  render() {
-    return (
-      <ul>
-        {this.props.todos.map((todo, index) =>
-          <Todo {...todo}
-                key={index}
-                onClick={() => this.props.onTodoClick(index)} />
-        )}
-      </ul>
-    )
-  }
-}
-
-TodoList.propTypes = {
-  onTodoClick: PropTypes.func.isRequired,
-  todos: PropTypes.arrayOf(PropTypes.shape({
-    text: PropTypes.string.isRequired,
-    completed: PropTypes.bool.isRequired
-  }).isRequired).isRequired
-}
-```
-
-```javascript
-// components/Footer.js
-import React, { Component, PropTypes } from 'react'
-
-export default class Footer extends Component {
-  renderFilter(filter, name) {
-    if (filter === this.props.filter) {
-      return name
-    }
-
-    return (
-      <a href='#' onClick={e => {
-        e.preventDefault()
-        this.props.onFilterChange(filter)
-      }}>
-        {name}
-      </a>
-    )
-  }
-
-  render() {
-    return (
-      <p>
-        Show:
-        {' '}
-        {this.renderFilter('SHOW_ALL', 'All')}
-        {', '}
-        {this.renderFilter('SHOW_COMPLETED', 'Completed')}
-        {', '}
-        {this.renderFilter('SHOW_ACTIVE', 'Active')}
-        .
-      </p>
-    )
-  }
-}
-
-Footer.propTypes = {
-  onFilterChange: PropTypes.func.isRequired,
-  filter: PropTypes.oneOf([
-    'SHOW_ALL',
-    'SHOW_COMPLETED',
-    'SHOW_ACTIVE'
-  ]).isRequired
-}
-```
-
-```javascript
-// containers/App.js
-import React, { Component } from 'react'
-import AddTodo from '../components/AddTodo'
-import TodoList from '../components/TodoList'
-import Footer from '../components/Footer'
-
-export default class App extends Component {
-  render() {
-    return (
-      <div>
-        <AddTodo
-          onAddClick={text =>
-            console.log('add todo', text)
-          } />
-        <TodoList
-          todos={
-            [
-              {
-                text: 'Use Redux',
-                completed: true
-              },
-              {
-                text: 'Learn to connect it to React',
-                completed: false
-              }
-            ]
-          }
-          onTodoClick={index =>
-            console.log('todo clicked', index)
-          } />
-        <Footer
-          filter='SHOW_ALL'
-          onFilterChange={filter =>
-            console.log('filter change', filter)
-          } />
-      </div>
-    )
-  }
-}
-```
-
-### Connecting to Redux
-
-`App`コンポーネントをReduxに接続し、actionをdispatchし状態をRedux storeから読み出すには、`App`コンポーネントに2つの変更を加える。
-
-まず、`react-redux`から`Provider`をインポートする。そしてルートコンポーネントを`<Provider>`でラップする。
-
-```javascript
-// index.js
-import React from 'react'
-import { render } from 'react-dom'
-import { createStore } from 'redux'
-import { Provider } from 'react-redux'
-import App from './containers/App'
-import todoApp from './reducers'
-
-let store = createStore(todoApp)
-
-let rootElement = document.getElementById('root')
-render(
-  <Provider store={store}>
-    <App />
-  </Provider>,
-  rootElement
-)
-```
-
-これでコンポーネントにstoreインスタンスの使用を可能にする。（内部的には、Reactのcontext機能で行われている。）
-それから、Reduxに繋げたいコンポーネントを`connect()`関数でラップする。
-トップレベルのコンポーネントかもしくはルートハンドラにのみ行うようにする。
-どのコンポーネントもReduxのstoreと`connect()`することはできるが、これはデータフローを追うことが困難になるのであまり深いところでやらないほうが良い。
-
-`connect()`でラップされた任意のコンポーネントは、`dispatch`関数とグローバルな状態から必要な任意の状態をプロパティとして受け取る。
-殆どの場合では`connect()`に一つの引数を渡すだけで良く、これは`selector`と呼ばれる関数である。
-この関数はReduxのstoreのグローバルな状態を受け、コンポーネントに必要なプロパティを返す。
-最も単純なケースでは、与えられた`state`をそのまま返す（純粋な`identity`関数）が、まずは変換する場合を見る。
-
-合成可能な`selector`で高性能でメモ化された変換処理を作るには、[reselect](https://github.com/rackt/reselect)を見ておく。
-この例ではそれを使わないが、大きなアプリケーションでは非常によく動く。
-
-```javascript
-// containers/App.js
-import React, { Component, PropTypes } from 'react'
-import { connect } from 'react-redux'
-import { addTodo, completeTodo, setVisibilityFilter, VisibilityFilters } from '../actions'
-import AddTodo from '../components/AddTodo'
-import TodoList from '../components/TodoList'
-import Footer from '../components/Footer'
-
-class App extends Component {
-  render() {
-    // Injected by connect() call:
-    const { dispatch, visibleTodos, visibilityFilter } = this.props
-    return (
-      <div>
-        <AddTodo
-          onAddClick={text =>
-            dispatch(addTodo(text))
-          } />
-        <TodoList
-          todos={visibleTodos}
-          onTodoClick={index =>
-            dispatch(completeTodo(index))
-          } />
-        <Footer
-          filter={visibilityFilter}
-          onFilterChange={nextFilter =>
-            dispatch(setVisibilityFilter(nextFilter))
-          } />
-      </div>
-    )
-  }
-}
-
-App.propTypes = {
-  visibleTodos: PropTypes.arrayOf(PropTypes.shape({
-    text: PropTypes.string.isRequired,
-    completed: PropTypes.bool.isRequired
-  }).isRequired).isRequired,
-  visibilityFilter: PropTypes.oneOf([
-    'SHOW_ALL',
-    'SHOW_COMPLETED',
-    'SHOW_ACTIVE'
-  ]).isRequired
-}
-
-function selectTodos(todos, filter) {
-  switch (filter) {
-    case VisibilityFilters.SHOW_ALL:
-      return todos
-    case VisibilityFilters.SHOW_COMPLETED:
-      return todos.filter(todo => todo.completed)
-    case VisibilityFilters.SHOW_ACTIVE:
-      return todos.filter(todo => !todo.completed)
-  }
-}
-
-// Which props do we want to inject, given the global state?
-// Note: use https://github.com/faassen/reselect for better performance.
-function select(state) {
-  return {
-    visibleTodos: selectTodos(state.todos, state.visibilityFilter),
-    visibilityFilter: state.visibilityFilter
-  }
-}
-
-// Wrap the component to inject dispatch and state into it
-export default connect(select)(App)
-```
